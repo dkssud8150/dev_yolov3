@@ -126,6 +126,8 @@ def train(dataset_name, output_dir, model_name, device="cpu", download=False):
     elif dataset_name == "kitti":
         n_classes, in_channel, in_height, in_width = 1, 1, 1, 1
 
+
+
     if model_name == 'lenet5' or model_name == 'darknet':
         _model = get_model(model_name)
         model = _model(batch=8, n_classes=n_classes, in_channel=in_channel, in_width=in_width, in_height=in_height, is_train=True)
@@ -135,10 +137,27 @@ def train(dataset_name, output_dir, model_name, device="cpu", download=False):
         num_features = model.fc.in_features
 
         model.fc = nn.Linear(num_features, n_classes)
+
     elif model_name == "fasterrcnn":
         model = models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
         in_features = model.roi_heads.box_predictor.cls_score.in_features
         model.roi_heads.box_predictor = FastRCNNPredictor(in_features, n_classes)
+    else:
+        _model = get_model(model_name)
+        model = _model(batch=8, n_classes=n_classes, in_channel=in_channel, in_width=in_width, in_height=in_height, is_train=True)
+
+        checkpoint = torch.load('./output/weight/model_best.pth.tar', map_location=device)
+        pretrain_state_dict = checkpoint['state_dict']
+        model_state_dict = model.state_dict()
+        for key, value in pretrain_state_dict.items():
+            if key == 'fc.weight' or key == 'fc.bias':
+                continue
+            else:
+                model_state_dict[key] = value
+                
+        model.load_state_dict(model_state_dict)
+
+
 
     print("dataset name : {}".format(dataset_name))
     print("model name : {}".format(model_name))
