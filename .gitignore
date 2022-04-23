@@ -2,3 +2,4 @@ datasets/*
 __pycache__
 test.ipynb
 weight/model_best.pth
+convert2Yolo

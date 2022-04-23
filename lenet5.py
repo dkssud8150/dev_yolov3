@@ -12,8 +12,8 @@ from tqdm.notebook import trange
 from model.models import *
 from loss.loss import *
 from util.tools import *
-from train_test.train_and_eval import *
-from train_test.test import *
+from lenet.train_test.train_and_eval import *
+from lenet.train_test.test import *
 
 def parse_args():
     parser = argparse.ArgumentParser(description="MNIST")
@@ -56,13 +56,12 @@ def main():
             print("can not use gpu!")
             device = torch.device("cpu")
     
-    if args.download == True and args.dataset_name == 'kitti':
-        os.system("./install_dataset.sh")
+
 
     if args.pretrain == "pretrain":
         model_name = 'pretrain'
     else:
-        model_name = 'darknet'
+        model_name = 'lenet5'
 
     # MNIST 데이터 : [1, 32, 32], FashionMNIST 데이터 : [1, 28, 28]
     # [1, H, W]
