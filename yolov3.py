@@ -1,4 +1,3 @@
-import enum
 import torch
 import torchvision.transforms as transforms
 from torch.utils.data.dataloader import DataLoader
@@ -12,6 +11,8 @@ from util.tools import *
 from dataloader.data_transforms import *
 from model.yolov3 import * 
 from train.train import * 
+
+from tensorboardX import SummaryWriter
 
 def parse_args():
     parser = argparse.ArgumentParser(description="YOLOV3_PYTORCH arguments")
@@ -32,6 +33,25 @@ def parse_args():
     args = parser.parse_args()
     return args
 
+def collate_fn(batch):
+    # only use valid data
+    batch = [data for data in batch if data is not None] 
+    # skip invalid data
+    if len(batch) == 0:
+        return
+    
+    imgs, targets, anno_path = list(zip(*batch))
+    imgs = torch.stack([img for img in imgs]) # mk 3dim -> 4dim, 0index = batch
+    for i, boxes in enumerate(targets):
+        # insert 0 index of box of dataloader function, instead of zero 
+        boxes[:,0] = i
+        #print(boxes.shape)
+    targets = torch.cat(targets,0)
+
+    return imgs, targets, anno_path
+
+
+
 
 ''' train '''
 def train(cfg_param = None, using_gpus = None):
@@ -46,30 +66,27 @@ def train(cfg_param = None, using_gpus = None):
     
     train_loader = DataLoader(train_dataset, 
                               batch_size=cfg_param['batch'],
-                              num_workers = 0,       # num_worker : cpu와 gpu의 데이터 교류를 담당함. 0이면 default로 single process와 같이 진행, 0이상이면 multi thred
-                              pin_memory = True,     # pin_memory : img나 데이터 array를 gpu로 올릴 때 memory의 위치를 고정시킨건지 할당할건지말지에 대한 것
+                              num_workers = 0,          # num_worker : cpu와 gpu의 데이터 교류를 담당함. 0이면 default로 single process와 같이 진행, 0이상이면 multi thred
+                              pin_memory = True,        # pin_memory : img나 데이터 array를 gpu로 올릴 때 memory의 위치를 고정시킨건지 할당할건지말지에 대한 것
                               drop_last = True,
-                              shuffle = True)
-                              #collate_fn=)          # collate_fn : batch size로 getitem할 때 각각의 이미지에 대해서만 가져온다. 그러나 학습을 할 떄는 batch 단위로 만들어줘야 하기 때문에 이를 collate fn으로 진행
-    
-    # # print EDA
-    # for i, batch in enumerate(train_loader):
-    #     img, target_data, anno_path = batch
-    #     print("iter {}, img {}, targets {}, anno_path {}".format(i , img.shape, target_data.shape, anno_path))
-    #     print("gt_data {}".format(target_data))
-        
-    #     drawBoxPIL(img[0].detach().cpu()) # detach는 backprop나 등등의 torch의 graph에서 떼내는 것이고, gpu이면 cpu로 데이터를 복사
-    #     break
+                              shuffle = True,
+                              collate_fn = collate_fn)  # collate_fn : batch size로 getitem할 때 각각의 이미지에 대해서만 가져온다. 그러나 학습을 할 떄는 batch 단위로 만들어줘야 하기 때문에 이를 collate fn으로 진행
 
     model = Darknet53(args.cfg, cfg_param, training=True)
 
     model.train()
     model.initialize_weights()
 
-    train = Trainer(model = model, train_loader = train_loader, eval_loader=None, hyparam=cfg_param)
+    #device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cpu")
+    model = model.to(device)
+
+    torchwriter = SummaryWriter("./output/tensorboard")
+
+    train = Trainer(model = model, train_loader = train_loader, eval_loader=None, hyparam=cfg_param, device = device, torchwriter = torchwriter)
     train.run()
 
- 
+    
 
 
 
@@ -109,3 +126,5 @@ if __name__ == "__main__":
         test(cfg_param = cfg_param)
     else:
         print("unknown mode")
+
+    
