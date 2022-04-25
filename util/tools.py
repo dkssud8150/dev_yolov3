@@ -35,7 +35,7 @@ def result_subplot(epochs, history):
         plt.tight_layout()
     plt.show()
 
-def result_plot(history):
+def result_plot(history, title):
     history = np.array(history)
     plt.plot(history[:,0:2])
     plt.text(0,0, "max accuracy" + str(max(history[:,0])))
@@ -175,3 +175,44 @@ def drawBoxCV(img):
 
         cv2.imshow("img", img_data)
         cv2.waitKey()
+
+
+import torch
+
+# box_a, box_b IOU
+# xyxy is value for whether or not boxes are [minx,miny,maxx,maxy], eps use when we divided by zero 0 to prevent error
+def bbox_iou(box1, box2, xyxy=False, eps = 1e-9):
+    box1 = box1.T
+    box2 = box2.T
+
+    if xyxy:
+        b1_x1, b1_y1, b1_x2, b1_y2 = box1[0],box1[1],box1[2],box1[3]
+        b2_x1, b2_y1, b2_x2, b2_y2 = box2[0],box2[1],box2[2],box2[3]
+    else:
+        b1_x1, b1_y1 = box1[0] - box1[2] / 2, box1[1] - box1[3] / 2
+        b1_x2, b1_y2 = box1[0] + box1[2] / 2, box1[1] + box1[3] / 2
+        b2_x1, b2_y1 = box2[0] - box2[2] / 2, box2[1] - box2[3] / 2
+        b2_x2, b2_y2 = box2[0] + box2[2] / 2, box2[1] + box2[3] / 2
+
+    # intersection
+    inter = (torch.min(b1_x2, b2_x2) - torch.max(b1_x1, b2_x1)).clamp(0) * \
+        (torch.min(b1_y2, b2_y2) - torch.max(b1_y1, b2_y1)).clamp(0)
+    
+    # union
+    b1_w, b1_h = b1_x2 - b1_x1, b1_y2 - b1_y1 * eps
+    b2_w, b2_h = b2_x2 - b2_x1, b2_y2 - b2_y1 * eps
+
+    # get two area and subtract intersection once.
+    union = b1_w * b1_h + b2_w * b2_h - inter * eps
+
+    # IOU
+    iou = inter / union
+
+    return iou
+
+# get learning rate in optimizer 
+def get_lr(optimizer):
+    for param_group in optimizer.param_groups:
+        return param_group['lr']
+
+    
