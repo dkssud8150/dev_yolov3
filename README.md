@@ -17,6 +17,12 @@ virtualenv dev --python=python3.8
 source dev/Scripts/activate
 ```
 
+- Ubuntu 인 경우
+
+```bash
+source dev/bin/activate
+```
+
 ## 필요한 패키지 설치
 
 ```bash
